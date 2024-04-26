@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <unistd.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -13,7 +15,7 @@ struct Inode {
 
 class MyFileSystem {
 private:
-    fstream diskFile;
+    int diskFileDescriptor;
     const int blockSize = 1024;
     const int numBlocks = 127;
     const int numInodes = 16;
@@ -22,8 +24,8 @@ private:
 
 public:
     MyFileSystem(char diskName[16]) {
-        diskFile.open(diskName, ios::binary | ios::in | ios::out);
-        if (!diskFile) {
+        diskFileDescriptor = open(diskName, O_RDWR);
+        if (diskFileDescriptor == -1) {
             cerr << "Error: Failed to open disk file." << endl;
             exit(1);
         }
@@ -31,14 +33,14 @@ public:
 
     // create a file
     void create(char name[16], int size) {
-        // Move the file pointer to the start of the disk file
-        diskFile.seekg(0, ios::beg);
+        // move the file pointer to the start of the disk file
+        lseek(diskFileDescriptor, 0, SEEK_SET);
 
-        // Read the free block list
+        // read the free block list
         char freeBlockList[superBlockSize];
-        diskFile.read(freeBlockList, superBlockSize);
+        read(diskFileDescriptor, freeBlockList, superBlockSize);
 
-        // Scan the list to find if we have sufficient free blocks
+        // scan the list to find if we have sufficient free blocks
         int freeBlocks = 0;
         for (int i = 0; i < superBlockSize; ++i) {
             if (freeBlockList[i] == 0) {
@@ -54,11 +56,12 @@ public:
             return;
         }
 
-        // Find a free inode
+        // find a free inode
         Inode inode;
         int inodeIndex = -1;
         for (int i = 0; i < numInodes; ++i) {
-            diskFile.read(reinterpret_cast<char*>(&inode), inodeSize);
+            lseek(diskFileDescriptor, superBlockSize + i * inodeSize, SEEK_SET);
+            read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used == 0) {
                 inodeIndex = i;
                 break;
@@ -70,12 +73,12 @@ public:
             return;
         }
 
-        // Mark inode as used
+        // mark inode as used
         inode.used = 1;
         strcpy(inode.name, name);
         inode.size = size;
 
-        // Allocate data blocks
+        // allocate data blocks
         int blocksAllocated = 0;
         for (int i = 0; i < numBlocks; ++i) {
             if (freeBlockList[i] == 0) {
@@ -87,25 +90,25 @@ public:
             }
         }
 
-        // Write inode back to disk
-        diskFile.seekp(superBlockSize + inodeIndex * inodeSize, ios::beg);
-        diskFile.write(reinterpret_cast<char*>(&inode), inodeSize);
+        // write inode back to disk
+        lseek(diskFileDescriptor, superBlockSize + inodeIndex * inodeSize, SEEK_SET);
+        write(diskFileDescriptor, &inode, inodeSize);
 
-        // Write updated free block list to disk
-        diskFile.seekp(0, ios::beg);
-        diskFile.write(freeBlockList, superBlockSize);
+        // write updated free block list to disk
+        lseek(diskFileDescriptor, 0, SEEK_SET);
+        write(diskFileDescriptor, freeBlockList, superBlockSize);
 
-        cout << "File created: " << name << endl;
+        cout << "create | " << "File: " << name << " | Size: " << inode.size << endl;
     }
 
     // delete a file
     void del(char name[16]) {
-        // Step 1: Locate inode for the file
+        // locate inode for the file
         Inode inode;
         int inodeIndex = -1;
-        diskFile.seekg(superBlockSize, ios::beg);
+        lseek(diskFileDescriptor, superBlockSize, SEEK_SET);
         for (int i = 0; i < numInodes; ++i) {
-            diskFile.read(reinterpret_cast<char*>(&inode), inodeSize);
+            read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used && strcmp(inode.name, name) == 0) {
                 inodeIndex = i;
                 break;
@@ -117,46 +120,46 @@ public:
             return;
         }
 
-        // Step 2: Free blocks
+        // free blocks
         char freeBlockList[superBlockSize];
-        diskFile.seekg(0, ios::beg);
-        diskFile.read(freeBlockList, superBlockSize);
+        lseek(diskFileDescriptor, 0, SEEK_SET);
+        read(diskFileDescriptor, freeBlockList, superBlockSize);
 
         for (int i = 0; i < inode.size; ++i) {
             freeBlockList[inode.blockPointers[i]] = 0;
         }
 
-        // Step 3: Update superblock and inode
+        // update superblock and inode
         inode.used = 0;
-        diskFile.seekp(superBlockSize + inodeIndex * inodeSize, ios::beg);
-        diskFile.write(reinterpret_cast<char*>(&inode), inodeSize);
+        lseek(diskFileDescriptor, superBlockSize + inodeIndex * inodeSize, SEEK_SET);
+        write(diskFileDescriptor, &inode, inodeSize);
 
-        diskFile.seekp(0, ios::beg);
-        diskFile.write(freeBlockList, superBlockSize);
+        lseek(diskFileDescriptor, 0, SEEK_SET);
+        write(diskFileDescriptor, freeBlockList, superBlockSize);
 
-        cout << "File deleted: " << name << endl;
+        cout << "delete | " << "File: " << name << endl;
     }
 
     // list files
     void ls() {
         Inode inode;
-        diskFile.seekg(superBlockSize, ios::beg);
+        lseek(diskFileDescriptor, superBlockSize, SEEK_SET);
         for (int i = 0; i < numInodes; ++i) {
-            diskFile.read(reinterpret_cast<char*>(&inode), inodeSize);
+            read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used) {
-                cout << "File: " << inode.name << ", Size: " << inode.size << " blocks" << endl;
+                cout << "ls     | " << "File: " << inode.name << " | Size: " << inode.size << " blocks" << endl;
             }
         }
     }
 
     // read file
-    void read(char name[16], int blockNum, char buf[1024]) {
-        // Step 1: Locate inode for the file
+    void readBlock(char name[16], int blockNum, char buf[1024]) {
+        // locate inode for the file
         Inode inode;
         int inodeIndex = -1;
-        diskFile.seekg(superBlockSize, ios::beg);
+        lseek(diskFileDescriptor, superBlockSize, SEEK_SET);
         for (int i = 0; i < numInodes; ++i) {
-            diskFile.read(reinterpret_cast<char*>(&inode), inodeSize);
+            read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used && strcmp(inode.name, name) == 0) {
                 inodeIndex = i;
                 break;
@@ -168,27 +171,26 @@ public:
             return;
         }
 
-        // Step 2: Read the specified block into the buffer
         if (blockNum >= inode.size) {
             cerr << "Error: Invalid block number." << endl;
             return;
         }
 
         int blockAddress = inode.blockPointers[blockNum];
-        diskFile.seekg(superBlockSize + blockAddress * blockSize, ios::beg);
-        diskFile.read(buf, blockSize);
+        lseek(diskFileDescriptor, superBlockSize + blockAddress * blockSize, SEEK_SET);
+        read(diskFileDescriptor, buf, blockSize);
 
-        cout << "Block " << blockNum << " read from file: " << name << endl;
+        cout << "read   | " << "File: " << name << " | Block: " << blockNum << endl;
     }
 
     // write to file
-    void write(char name[16], int blockNum, char buf[1024]) {
-        // Step 1: Locate inode for the file
+    void writeBlock(char name[16], int blockNum, char buf[1024]) {
+        // locate inode for the file
         Inode inode;
         int inodeIndex = -1;
-        diskFile.seekg(superBlockSize, ios::beg);
+        lseek(diskFileDescriptor, superBlockSize, SEEK_SET);
         for (int i = 0; i < numInodes; ++i) {
-            diskFile.read(reinterpret_cast<char*>(&inode), inodeSize);
+            read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used && strcmp(inode.name, name) == 0) {
                 inodeIndex = i;
                 break;
@@ -200,22 +202,22 @@ public:
             return;
         }
 
-        // Step 2: Write data from buffer to the specified block
+        // write data from buffer to the specified block
         if (blockNum >= inode.size) {
             cerr << "Error: Invalid block number." << endl;
             return;
         }
 
         int blockAddress = inode.blockPointers[blockNum];
-        diskFile.seekp(superBlockSize + blockAddress * blockSize, ios::beg);
-        diskFile.write(buf, blockSize);
+        lseek(diskFileDescriptor, superBlockSize + blockAddress * blockSize, SEEK_SET);
+        write(diskFileDescriptor, buf, blockSize);
 
-        cout << "Block " << blockNum << " written to file: " << name << endl;
+        cout << "write  | " << "File: " << name << " | Block: " << blockNum << endl;
     }
 
     // close file
     void close() {
-        diskFile.close();
+        ::close(diskFileDescriptor);
     }
 
     ~MyFileSystem() {
@@ -233,8 +235,8 @@ void executeCommandsFromFile(const char* filename, MyFileSystem& fs) {
 
     string command;
     while (getline(inputFile, command)) {
-        // Parse command and its arguments
-        // Example: diskName, operation, fileName, size, blockNum, buf
+        // parse command and its arguments
+        // diskName, operation, fileName, size, blockNum, buf
         char diskName[16], fileName[16];
         int size, blockNum;
         char buf[1024];
@@ -250,12 +252,11 @@ void executeCommandsFromFile(const char* filename, MyFileSystem& fs) {
         } else if (command[0] == 'R') { // read file
             sscanf(command.c_str(), "R %s %d", fileName, &blockNum);
             char buf[1024];
-            fs.read(fileName, blockNum, buf);
+            fs.readBlock(fileName, blockNum, buf);
         } else if (command[0] == 'W') { // write to file
             sscanf(command.c_str(), "W %s %d", fileName, &blockNum);
             char buf[1024];
-            // Assume buf contains some data
-            fs.write(fileName, blockNum, buf);
+            fs.writeBlock(fileName, blockNum, buf);
         }
     }
 }
