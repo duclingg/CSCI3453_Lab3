@@ -46,4 +46,4 @@ all: main.cpp
 
 # Clean removes build files that are created
 clean:
-	rm main.o
+	rm main.o main
