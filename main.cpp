@@ -152,7 +152,7 @@ public:
         write(diskFileDescriptor, freeBlockList, superBlockSize);
 
         // print file deletion information
-        cout << "delete | " << "File: " << name << endl;
+        cout << "delete | " << "File: " << name << " | Size: " << inode.size << endl;
 
         for (int i = 0; i < inode.size; ++i) {
             cout << "       | Deallocated block: " << inode.blockPointers[i] << endl;
@@ -166,7 +166,7 @@ public:
         for (int i = 0; i < numInodes; ++i) {
             read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used) {
-                cout << "       | File: " << inode.name << " | Size: " << inode.size << " blocks" << endl;
+                cout << "       | " << inode.name << " | Size: " << inode.size << " blocks" << endl;
             }
         }
     }
