@@ -166,7 +166,7 @@ public:
         for (int i = 0; i < numInodes; ++i) {
             read(diskFileDescriptor, &inode, inodeSize);
             if (inode.used) {
-                cout << "ls     | " << "File: " << inode.name << " | Size: " << inode.size << " blocks" << endl;
+                cout << "       | File: " << inode.name << " | Size: " << inode.size << " blocks" << endl;
             }
         }
     }
@@ -273,6 +273,7 @@ void executeCommandsFromFile(const char* filename, MyFileSystem& fs) {
             fs.del(fileName);
             cout << "\n";
         } else if (command[0] == 'L') { // list
+            cout << "ls     | " << endl;
             fs.ls();
             cout << "\n";
         } else if (command[0] == 'R') { // read

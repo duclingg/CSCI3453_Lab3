@@ -1,0 +1,7 @@
+L
+D file1.c
+D file2.c
+D file4.c
+D a.out
+D lab3.c
+L
