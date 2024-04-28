@@ -55,10 +55,11 @@ The program is working as intended. Compiles and runs on csegrid.
 `Makefile`  
 
 ## How to Build and Run Program
-1. Create a disk using the exectuable via the command `./make-disk <disk name>` in the terminal.
-- Note this executable only runs in CSE Grid.
-2. Next build the program using the **Makefile** via the command `make`
-3. Run the executable for the program using `./main`
-4. The program will begin to run.
+1. Change the permission of the `./make-disk` executable.
+2. Create a disk using the exectuable via the command `./make-disk <disk name>` in the terminal.
+- Note: this executable only runs in CSE Grid.
+3. Next build the program using the **Makefile** via the command `make`
+4. Run the executable for the program using `./main`
+5. The program will begin to run.
 - Enter the disk image you want to use (the one you just created)
 - Enter the input `.txt` file of operations that you want to execute.
