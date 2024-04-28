@@ -31,7 +31,7 @@ This programming assignment aims to enhance understanding of file systems by imp
 - 16 inodes store file metadata.
 - Each inode includes file name, size, block pointers, and usage status.
 
-#### Operations to Implement
+#### System Operations
 - `create(char name[16], int size)`: Create a new file with specified name and size.
 - `delete(char name[16])`: Delete the file with specified name.
 - `read(char name[16], int blockNum, char buf[1024])`: Read specified block from file into buffer.
@@ -55,3 +55,10 @@ The program is working as intended. Compiles and runs on csegrid.
 `Makefile`  
 
 ## How to Build and Run Program
+1. Create a disk using the exectuable via the command `./make-disk <disk name>` in the terminal.
+- Note this executable only runs in CSE Grid.
+2. Next build the program using the **Makefile** via the command `make`
+3. Run the executable for the program using `./main`
+4. The program will begin to run.
+- Enter the disk image you want to use (the one you just created)
+- Enter the input `.txt` file of operations that you want to execute.
