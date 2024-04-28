@@ -55,8 +55,8 @@ The program is working as intended. Compiles and runs on csegrid.
 `Makefile`  
 
 ## How to Build and Run Program
-1. Change the permission of the `./make-disk` executable.
-2. Create a disk using the exectuable via the command `./make-disk <disk name>` in the terminal.
+1. Change the permission of the `./make-disk` executable using the command `chmod +x make-disk` in the terminal.
+2. Create a disk using the exectuable via the command `./make-disk <disk name>`
 - Note: this executable only runs in CSE Grid.
 3. Next build the program using the **Makefile** via the command `make`
 4. Run the executable for the program using `./main`
